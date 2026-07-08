@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import toast from 'react-hot-toast';
+import { useNotify } from '../context/NotifyContext';
 import PageLayout from '../components/layout/PageLayout';
 import QuestionManagement from '../components/admin/QuestionManagement';
 import { getUserTypeLabel, getInitials } from '../utils/helpers';
@@ -15,6 +15,8 @@ export default function ProfilePage() {
   const [changingPw, setChangingPw] = useState(false);
   const [showPwForm, setShowPwForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pwError, setPwError] = useState('');
+  const notify = useNotify();
 
   useEffect(() => {
     const load = async () => {
@@ -44,9 +46,9 @@ export default function ProfilePage() {
     try {
       await api.put('/profile/', { full_name: editName.trim() });
       await refreshProfile();
-      toast.success('Updated');
+      notify.success('Name updated successfully!');
     } catch {
-      toast.error('Failed');
+      notify.error('Failed to update name.');
     } finally {
       setSaving(false);
     }
@@ -54,15 +56,17 @@ export default function ProfilePage() {
 
   const changePw = async (e) => {
     e.preventDefault();
-    if (pw.new_password !== pw.confirm) { toast.error("Passwords don't match"); return; }
+    setPwError('');
+    if (pw.new_password !== pw.confirm) { setPwError("Passwords don't match."); return; }
+    if (pw.new_password.length < 8) { setPwError('Password must be at least 8 characters.'); return; }
     setChangingPw(true);
     try {
       await api.post('/change-password/', { old_password: pw.old_password, new_password: pw.new_password });
-      toast.success('Password changed');
+      notify.success('Password changed successfully!');
       setPw({ old_password: '', new_password: '', confirm: '' });
       setShowPwForm(false);
     } catch (err) {
-      toast.error(err.response?.data?.old_password?.[0] || 'Failed');
+      setPwError(err.response?.data?.old_password?.[0] || 'Failed to change password.');
     } finally {
       setChangingPw(false);
     }
@@ -70,6 +74,7 @@ export default function ProfilePage() {
 
   const cancelPwChange = () => {
     setShowPwForm(false);
+    setPwError('');
     setPw({ old_password: '', new_password: '', confirm: '' });
   };
 
@@ -110,18 +115,24 @@ export default function ProfilePage() {
           <div className="profile-field">
             <label className="input-label">Current Password</label>
             <input type="password" className="input-field" placeholder="Enter current password"
-              value={pw.old_password} onChange={e => setPw({ ...pw, old_password: e.target.value })} />
+              value={pw.old_password} onChange={e => { setPw({ ...pw, old_password: e.target.value }); setPwError(''); }} />
           </div>
           <div className="profile-field">
             <label className="input-label">New Password</label>
             <input type="password" className="input-field" placeholder="Min. 8 characters"
-              value={pw.new_password} onChange={e => setPw({ ...pw, new_password: e.target.value })} />
+              value={pw.new_password} onChange={e => { setPw({ ...pw, new_password: e.target.value }); setPwError(''); }} />
           </div>
           <div className="profile-field">
             <label className="input-label">Confirm New Password</label>
             <input type="password" className="input-field" placeholder="Re-enter new password"
-              value={pw.confirm} onChange={e => setPw({ ...pw, confirm: e.target.value })} />
+              value={pw.confirm} onChange={e => { setPw({ ...pw, confirm: e.target.value }); setPwError(''); }} />
           </div>
+          {pwError && (
+            <div className="auth-error-banner" role="alert">
+              <span className="auth-error-icon">✕</span>
+              <span>{pwError}</span>
+            </div>
+          )}
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={cancelPwChange} className="btn-secondary flex-1 text-sm !py-2.5">Cancel</button>
             <button type="submit" disabled={changingPw || !pw.old_password || !pw.new_password}

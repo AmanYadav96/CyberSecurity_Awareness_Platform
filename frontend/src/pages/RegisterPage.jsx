@@ -1,34 +1,38 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotify } from '../context/NotifyContext';
 import AuthLayout from '../components/layout/AuthLayout';
 import { USER_TYPES } from '../utils/constants';
 import { getPasswordStrength, PASSWORD_STRENGTH_COLORS } from '../utils/helpers';
-import toast from 'react-hot-toast';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ full_name: '', email: '', password: '', confirm_password: '', user_type: '' });
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const { register } = useAuth();
   const navigate = useNavigate();
+  const notify = useNotify();
   const strength = getPasswordStrength(form.password);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMsg('');
     if (!form.full_name || !form.email || !form.password || !form.confirm_password || !form.user_type) {
-      toast.error('Fill all fields'); return;
+      setErrorMsg('Please fill in all fields.'); return;
     }
-    if (form.password !== form.confirm_password) { toast.error('Passwords don\'t match'); return; }
-    if (form.password.length < 8) { toast.error('Min 8 characters'); return; }
+    if (form.password !== form.confirm_password) { setErrorMsg("Passwords don't match."); return; }
+    if (form.password.length < 8) { setErrorMsg('Password must be at least 8 characters.'); return; }
     setLoading(true);
     try {
       await register(form);
-      toast.success('Account created!');
+      notify.success('Account created successfully!');
       navigate('/dashboard');
     } catch (err) {
       const errors = err.response?.data;
-      toast.error(errors ? Object.values(errors).flat()[0] : 'Registration failed');
+      const msg = errors ? Object.values(errors).flat()[0] : 'Registration failed. Please try again.';
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -95,6 +99,14 @@ export default function RegisterPage() {
             <p className="text-xs text-cyber-red">Passwords don't match</p>
           )}
         </div>
+
+        {/* Inline error banner */}
+        {errorMsg && (
+          <div className="auth-error-banner" role="alert">
+            <span className="auth-error-icon">✕</span>
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         <button type="submit" disabled={loading} className="btn-primary w-full !py-2.5 text-sm">
           {loading ? 'Creating...' : 'Create Account'}

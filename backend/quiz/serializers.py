@@ -24,9 +24,11 @@ class QuizQuestionSerializer(serializers.ModelSerializer):
 class AnswerSubmitSerializer(serializers.Serializer):
     """Serializer for a single answer submission."""
     question_id = serializers.IntegerField()
-    selected_answer = serializers.CharField(max_length=1)
+    selected_answer = serializers.CharField(max_length=1, allow_null=True, allow_blank=True, required=False, default=None)
 
     def validate_selected_answer(self, value):
+        if value is None or value == '':
+            return None  # Unanswered — will be treated as incorrect
         if value.upper() not in ['A', 'B', 'C', 'D']:
             raise serializers.ValidationError("Answer must be A, B, C, or D.")
         return value.upper()

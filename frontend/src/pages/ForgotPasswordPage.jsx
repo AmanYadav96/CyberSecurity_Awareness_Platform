@@ -2,28 +2,28 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
 import AuthLayout from '../components/layout/AuthLayout';
-import toast from 'react-hot-toast';
+import { useNotify } from '../context/NotifyContext';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [resetLink, setResetLink] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const notify = useNotify();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email) { toast.error('Enter your email'); return; }
+    setErrorMsg('');
+    if (!email) { setErrorMsg('Please enter your email address.'); return; }
     setLoading(true);
     try {
       const res = await api.post('/forgot-password/', { email });
-      if (res.data.reset_link) {
-        setResetLink(res.data.reset_link);
-      }
+      if (res.data.reset_link) setResetLink(res.data.reset_link);
       setSent(true);
-      toast.success('Reset link generated');
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.detail || 'Something went wrong';
-      toast.error(msg);
+      const msg = err.response?.data?.message || err.response?.data?.detail || 'Something went wrong. Please try again.';
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
 
   const copyLink = () => {
     navigator.clipboard.writeText(resetLink);
-    toast.success('Link copied to clipboard');
+    notify.success('Link copied to clipboard');
   };
 
   return (
@@ -65,9 +65,23 @@ export default function ForgotPasswordPage() {
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="auth-field">
             <label htmlFor="fp-email" className="input-label">Email</label>
-            <input id="fp-email" type="email" className="input-field" placeholder="you@example.com"
-              value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              id="fp-email"
+              type="email"
+              className={`input-field ${errorMsg ? 'border-cyber-red/50' : ''}`}
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setErrorMsg(''); }}
+            />
           </div>
+
+          {errorMsg && (
+            <div className="auth-error-banner" role="alert">
+              <span className="auth-error-icon">✕</span>
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
           <button type="submit" disabled={loading} className="btn-primary w-full !py-2.5 text-sm">
             {loading ? 'Sending...' : 'Send Reset Link'}
           </button>

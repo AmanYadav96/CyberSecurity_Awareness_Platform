@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Centered animated modal for warnings, success, and confirmations.
@@ -7,6 +7,8 @@ import { useEffect } from 'react';
  * appears centered on the full viewport regardless of where it is used.
  */
 export default function CenterModal({ open, title, message, type = 'info', actions, onClose }) {
+  const [active, setActive] = useState(false);
+
   // Lock body scroll while open
   useEffect(() => {
     if (!open) return;
@@ -15,13 +17,23 @@ export default function CenterModal({ open, title, message, type = 'info', actio
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
+  // Enable click actions after a short delay to prevent click-through dismissal
+  useEffect(() => {
+    if (!open) {
+      setActive(false);
+      return;
+    }
+    const timer = setTimeout(() => setActive(true), 350);
+    return () => clearTimeout(timer);
+  }, [open]);
+
   // Close on Escape key
   useEffect(() => {
-    if (!open) return;
+    if (!open || !active) return;
     const handleKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [open, onClose]);
+  }, [open, active, onClose]);
 
   if (!open) return null;
 
@@ -54,8 +66,8 @@ export default function CenterModal({ open, title, message, type = 'info', actio
         background: 'rgba(0, 0, 0, 0.70)',
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
+        pointerEvents: active ? 'auto' : 'none',
       }}
-      onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="center-modal-title"

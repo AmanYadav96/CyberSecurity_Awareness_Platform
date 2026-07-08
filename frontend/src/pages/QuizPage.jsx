@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import PageLayout from '../components/layout/PageLayout';
+import { useNotify } from '../context/NotifyContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import CenterModal from '../components/common/CenterModal';
+import PageLayout from '../components/layout/PageLayout';
 import { QUIZ_TYPES } from '../utils/constants';
 import { formatTime } from '../utils/helpers';
 
@@ -20,9 +20,11 @@ export default function QuizPage() {
   const [justSelected, setJustSelected] = useState(null);
   const [confirmModal, setConfirmModal] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
+  const [showNavigator, setShowNavigator] = useState(false);
   const timerRef = useRef(null);
   const navigate = useNavigate();
   const { refreshProfile } = useAuth();
+  const notify = useNotify();
 
   const navCols = questions.length > 30 ? 10 : 5;
 
@@ -72,7 +74,7 @@ export default function QuizPage() {
       setCurrentIndex(0);
       setPhase('quiz');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to start quiz. Please try again.');
+      notify.error(err.response?.data?.error || 'Failed to start quiz. Please try again.');
       setPhase('setup');
     }
   };
@@ -97,14 +99,13 @@ export default function QuizPage() {
     clearInterval(timerRef.current);
     setPhase('submitting');
     const timeTaken = Math.floor((Date.now() - (startTime || Date.now())) / 1000);
-    const arr = questions.map((q) => ({ question_id: q.id, selected_answer: answers[q.id] || 'A' }));
+    const arr = questions.map((q) => ({ question_id: q.id, selected_answer: answers[q.id] || null }));
     try {
       const res = await api.post('/quiz/submit/', { answers: arr, quiz_type: quizType, time_taken: timeTaken });
       await refreshProfile();
-      toast.success(auto ? '⏰ Time up — quiz submitted!' : '✅ Quiz submitted!');
       navigate(`/results/${res.data.attempt_id}`, { state: { resultData: res.data } });
     } catch {
-      toast.error('Submit failed. Please try again.');
+      notify.error('Submit failed. Please try again.');
       setPhase('quiz');
     }
   }, [phase, questions, answers, quizType, startTime, navigate, refreshProfile]);
@@ -155,7 +156,7 @@ export default function QuizPage() {
   // ── LOADING / SUBMITTING ──────────────────────────────────────────────────
   if (phase === 'loading' || phase === 'submitting') {
     return (
-      <div className="page-container flex-1 flex items-center justify-center min-h-[50vh]">
+      <div className="quiz-full-page flex items-center justify-center">
         <LoadingSpinner size="lg" text={phase === 'loading' ? 'Preparing your personalized quiz...' : 'Submitting your answers...'} />
       </div>
     );
@@ -171,55 +172,58 @@ export default function QuizPage() {
     { k: 'C', t: q.option_c },
     { k: 'D', t: q.option_d },
   ];
-
   const unansweredCount = questions.length - answered;
 
   return (
-    <div className="page-container flex-1 py-5 sm:py-7">
-      <div className="quiz-centered">
+    <div className="quiz-full-page">
+      <div className="quiz-full-inner">
 
         {/* ── Header bar ── */}
-        <div className="glass-card p-4 mb-5">
-          <div className="quiz-header-bar">
-            <div className="flex items-center gap-4">
-              <span className={`quiz-timer font-mono ${
-                timeLeft <= 60 ? 'text-cyber-red animate-pulse' :
-                timeLeft <= 180 ? 'text-cyber-gold' : 'text-cyber-blue'
-              }`}>
-                ⏱ {formatTime(timeLeft)}
-              </span>
-              <div className="text-sm">
-                <span className="text-cyber-neon font-bold">{answered}</span>
-                <span className="text-cyber-text-dim">/{questions.length} answered</span>
-              </div>
+        <div className="quiz-topbar glass-card">
+          <div className="quiz-topbar-left">
+            <span className={`quiz-timer font-mono ${
+              timeLeft <= 60 ? 'text-cyber-red animate-pulse' :
+              timeLeft <= 180 ? 'text-cyber-gold' : 'text-cyber-blue'
+            }`}>
+              ⏱ {formatTime(timeLeft)}
+            </span>
+            <div className="text-sm hidden sm:block">
+              <span className="text-cyber-neon font-bold">{answered}</span>
+              <span className="text-cyber-text-dim">/{questions.length} answered</span>
             </div>
-            <button
-              onClick={() => unansweredCount > 0 ? setConfirmModal(true) : handleSubmit(false)}
-              className="btn-primary !py-2.5 !px-6 text-sm"
-            >
-              Submit Quiz
-            </button>
           </div>
-          {/* Animated progress bar */}
-          <div className="progress-bar mt-3">
-            <div className="progress-bar-fill" style={{ width: `${progress}%`, transition: 'width 0.4s ease' }} />
+
+          {/* Progress bar in center */}
+          <div className="quiz-topbar-progress">
+            <div className="progress-bar" style={{ height: '6px' }}>
+              <div className="progress-bar-fill" style={{ width: `${progress}%`, transition: 'width 0.4s ease' }} />
+            </div>
+            <div className="flex justify-between text-xs text-cyber-text-dim mt-1">
+              <span>{Math.round(progress)}%</span>
+              {unansweredCount > 0
+                ? <span className="text-cyber-gold">{unansweredCount} remaining</span>
+                : <span className="text-cyber-neon font-semibold">✓ All answered!</span>
+              }
+            </div>
           </div>
-          <div className="flex justify-between text-xs text-cyber-text-dim mt-1.5">
-            <span>Progress: {Math.round(progress)}%</span>
-            {unansweredCount > 0
-              ? <span className="text-cyber-gold">{unansweredCount} remaining</span>
-              : <span className="text-cyber-neon font-semibold">✓ All answered!</span>
-            }
-          </div>
+
+          <button
+            onClick={() => unansweredCount > 0 ? setConfirmModal(true) : handleSubmit(false)}
+            className="btn-primary quiz-submit-btn"
+          >
+            Submit Quiz
+          </button>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-5 items-start">
+        {/* ── Body: question + navigator ── */}
+        <div className="quiz-body">
 
           {/* ── Question card ── */}
           <div
-            className="lg:col-span-2 glass-card quiz-question-card p-6 sm:p-8"
+            className="quiz-question-area glass-card"
             style={{ opacity: transitioning ? 0 : 1, transition: 'opacity 0.08s ease' }}
           >
+            {/* Meta row */}
             <div className="quiz-question-meta">
               <span className="text-sm font-bold text-cyber-blue">
                 Question {currentIndex + 1}
@@ -229,16 +233,18 @@ export default function QuizPage() {
               <span className="badge badge-purple capitalize">{q.difficulty}</span>
             </div>
 
+            {/* Question text */}
             <p className="quiz-question-text">{q.question_text}</p>
 
-            {/* Keyboard hint */}
-            <p className="text-xs text-cyber-text-dim mb-3 opacity-60">
+            {/* Keyboard hint — desktop only */}
+            <p className="text-xs text-cyber-text-dim mb-3 opacity-60 hidden sm:block">
               Tip: Press{' '}
               {['A','B','C','D'].map(k => (
                 <kbd key={k} className="mx-0.5 px-1.5 py-0.5 rounded border border-cyber-border text-cyber-text-dim text-xs">{k}</kbd>
               ))}{' '}to select · Arrow keys to navigate
             </p>
 
+            {/* Options */}
             <div className="quiz-options">
               {opts.map((o) => {
                 const isSelected = answers[q.id] === o.k;
@@ -259,13 +265,13 @@ export default function QuizPage() {
               })}
             </div>
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between mt-7 pt-5 border-t border-cyber-border/20">
+            {/* Prev/Next navigation */}
+            <div className="flex items-center justify-between mt-5 pt-4 border-t border-cyber-border/20">
               <button
                 type="button"
                 onClick={() => goToQuestion(Math.max(0, currentIndex - 1))}
                 disabled={currentIndex === 0}
-                className="btn-secondary !py-2.5 !px-5 text-sm disabled:opacity-30"
+                className="btn-secondary !py-2 !px-4 text-sm disabled:opacity-30"
               >
                 ← Previous
               </button>
@@ -274,58 +280,75 @@ export default function QuizPage() {
                 type="button"
                 onClick={() => goToQuestion(Math.min(questions.length - 1, currentIndex + 1))}
                 disabled={currentIndex === questions.length - 1}
-                className="btn-primary !py-2.5 !px-5 text-sm disabled:opacity-30"
+                className="btn-primary !py-2 !px-4 text-sm disabled:opacity-30"
               >
                 Next →
               </button>
             </div>
           </div>
 
-          {/* ── Question navigator ── */}
-          <div className="glass-card p-5 lg:sticky lg:top-20 flex flex-col">
-            <p className="section-title mb-3">Question Navigator</p>
-            <div className="quiz-nav-legend mb-3">
-              <span><span className="quiz-nav-dot bg-cyber-blue" /> Current</span>
-              <span><span className="quiz-nav-dot bg-cyber-neon/40 border border-cyber-neon/30" /> Answered</span>
-              <span><span className="quiz-nav-dot bg-cyber-slate/80" /> Unanswered</span>
-            </div>
-            <div className="quiz-nav-scroll">
-              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${navCols}, minmax(0, 1fr))` }}>
-                {questions.map((qi, i) => (
-                  <button
-                    key={qi.id}
-                    type="button"
-                    onClick={() => goToQuestion(i)}
-                    title={`Q${i + 1}${answers[qi.id] ? ` — ${answers[qi.id]}` : ' — unanswered'}`}
-                    className={`h-9 rounded-lg text-xs font-bold flex items-center justify-center transition-all duration-200 ${
-                      i === currentIndex
-                        ? 'bg-cyber-blue text-white shadow-[0_0_12px_rgba(0,212,255,0.4)] scale-110'
-                        : answers[qi.id]
-                        ? 'bg-cyber-neon/15 text-cyber-neon border border-cyber-neon/25 hover:bg-cyber-neon/25'
-                        : 'bg-cyber-slate/50 text-cyber-text-dim hover:bg-cyber-slate hover:text-cyber-text'
-                    }`}
-                  >
-                    {answers[qi.id] && i !== currentIndex ? '✓' : i + 1}
-                  </button>
-                ))}
+          {/* ── Question navigator sidebar ── */}
+          <div className="quiz-navigator glass-card">
+            {/* Mobile toggle */}
+            <button
+              type="button"
+              className="flex items-center justify-between w-full lg:cursor-default"
+              onClick={() => setShowNavigator(v => !v)}
+            >
+              <p className="section-title">Navigator</p>
+              <span className="text-xs text-cyber-text-dim lg:hidden">
+                {showNavigator ? '▲ Hide' : '▼ Show'}
+              </span>
+            </button>
+
+            <div className={`${showNavigator ? 'block' : 'hidden'} lg:block mt-3`}>
+              {/* Legend */}
+              <div className="quiz-nav-legend mb-3">
+                <span><span className="quiz-nav-dot bg-cyber-blue" /> Current</span>
+                <span><span className="quiz-nav-dot bg-cyber-neon/40 border border-cyber-neon/30" /> Done</span>
+                <span><span className="quiz-nav-dot bg-cyber-slate/80" /> Left</span>
               </div>
-            </div>
-            {/* Mini stats */}
-            <div className="mt-4 pt-4 border-t border-cyber-border/20 grid grid-cols-2 gap-2 text-center">
-              <div>
-                <p className="text-lg font-bold text-cyber-neon">{answered}</p>
-                <p className="text-xs text-cyber-text-dim">Answered</p>
+
+              {/* Grid */}
+              <div className="quiz-nav-scroll">
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${navCols}, minmax(0, 1fr))` }}>
+                  {questions.map((qi, i) => (
+                    <button
+                      key={qi.id}
+                      type="button"
+                      onClick={() => goToQuestion(i)}
+                      title={`Q${i + 1}${answers[qi.id] ? ` — ${answers[qi.id]}` : ' — unanswered'}`}
+                      className={`h-10 w-full rounded-lg text-sm font-bold flex items-center justify-center transition-all duration-200 ${
+                        i === currentIndex
+                          ? 'bg-cyber-blue text-white shadow-[0_0_10px_rgba(0,212,255,0.4)] scale-110'
+                          : answers[qi.id]
+                          ? 'bg-cyber-neon/15 text-cyber-neon border border-cyber-neon/25 hover:bg-cyber-neon/25'
+                          : 'bg-cyber-slate/50 text-cyber-text-dim hover:bg-cyber-slate hover:text-cyber-text'
+                      }`}
+                    >
+                      {answers[qi.id] && i !== currentIndex ? '✓' : i + 1}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <p className="text-lg font-bold text-cyber-gold">{unansweredCount}</p>
-                <p className="text-xs text-cyber-text-dim">Remaining</p>
+
+              {/* Mini stats */}
+              <div className="mt-3 pt-3 border-t border-cyber-border/20 grid grid-cols-2 gap-2 text-center">
+                <div>
+                  <p className="text-base font-bold text-cyber-neon">{answered}</p>
+                  <p className="text-xs text-cyber-text-dim">Answered</p>
+                </div>
+                <div>
+                  <p className="text-base font-bold text-cyber-gold">{unansweredCount}</p>
+                  <p className="text-xs text-cyber-text-dim">Remaining</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Submit confirmation when unanswered questions remain */}
+      {/* Submit confirmation modal */}
       <CenterModal
         open={confirmModal}
         type="warning"

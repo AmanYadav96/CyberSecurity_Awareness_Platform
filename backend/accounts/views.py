@@ -88,8 +88,6 @@ class SendOTPView(APIView):
         )
 
         response_data = {'message': 'Verification code sent to your email.'}
-        if settings.DEBUG:
-            response_data['otp_debug'] = otp
         return Response(response_data)
 
 

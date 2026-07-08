@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../api/axios';
-import toast from 'react-hot-toast';
+import { useNotify } from '../context/NotifyContext';
 import PageLayout from '../components/layout/PageLayout';
 import { getUserTypeLabel, formatDate } from '../utils/helpers';
 
@@ -10,6 +10,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const notify = useNotify();
 
   useEffect(() => {
     Promise.all([api.get('/admin/stats/'), api.get('/admin/users/')])
@@ -17,7 +18,7 @@ export default function AdminDashboard() {
         setStats(s.data);
         setUsers(u.data.results || u.data || []);
       })
-      .catch(() => toast.error('Failed to load admin data'))
+      .catch(() => notify.error('Failed to load admin data'))
       .finally(() => setLoading(false));
   }, []);
 

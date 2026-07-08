@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotify } from '../context/NotifyContext';
 import AuthLayout from '../components/layout/AuthLayout';
 import PasswordField from '../components/auth/PasswordField';
 import CenterModal from '../components/common/CenterModal';
 import { USER_TYPES } from '../utils/constants';
 import api from '../api/axios';
-import toast from 'react-hot-toast';
 
 /**
  * Smart auth flow:
@@ -19,6 +19,7 @@ export default function AuthPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
@@ -30,6 +31,7 @@ export default function AuthPage() {
 
   const { setAuthFromResponse, register } = useAuth();
   const navigate = useNavigate();
+  const notify = useNotify();
 
   // ────────────────────────────────────────────────────────────────────────
   // Step 1: check if user exists → login or move to Step 2 registration
@@ -71,10 +73,12 @@ export default function AuthPage() {
         setForm(f => ({ ...f, confirm_password: password }));
         setStep(2);
       } else {
+        const errText = data?.error || data?.detail || 'Invalid credentials. Please check your email and password.';
+        setErrorMsg(errText);
         setModal({
           type: 'error',
           title: 'Login Failed',
-          message: data?.error || data?.detail || 'Invalid credentials. Please check your email and password.',
+          message: errText,
         });
       }
     } finally {
@@ -93,11 +97,10 @@ export default function AuthPage() {
     try {
       const res = await api.post('/auth/send-otp/', { email: email.trim().toLowerCase() });
       setOtpSent(true);
-      const debugMsg = res.data.otp_debug ? `\n\n🔑 Dev mode OTP: ${res.data.otp_debug}` : '';
       setModal({
         type: 'success',
         title: 'Verification Code Sent!',
-        message: `A 6-digit verification code has been sent to ${email}.${debugMsg} Please check your inbox and enter it below.`,
+        message: `A 6-digit verification code has been sent to ${email}. Please check your inbox and enter it below.`,
       });
     } catch (err) {
       const msg = err.response?.data?.email?.[0]
@@ -165,9 +168,9 @@ export default function AuthPage() {
       const pw = res.data.password;
       setPassword(pw);
       setForm(f => ({ ...f, confirm_password: pw }));
-      toast.success('Strong password generated! Save it securely.');
+      notify.success('Strong password generated! Save it securely.');
     } catch {
-      toast.error('Could not generate password. Try again.');
+      notify.error('Could not generate password. Try again.');
     }
   };
 
@@ -191,7 +194,7 @@ export default function AuthPage() {
               className="input-field"
               placeholder="you@example.com"
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => { setEmail(e.target.value); setErrorMsg(''); }}
               autoComplete="email"
               required
             />
@@ -200,7 +203,7 @@ export default function AuthPage() {
           <PasswordField
             label="Password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={e => { setPassword(e.target.value); setErrorMsg(''); }}
             placeholder="Enter your password"
             showStrength
             onSuggest={suggestPassword}
@@ -212,6 +215,14 @@ export default function AuthPage() {
               Forgot password?
             </Link>
           </div>
+
+          {/* Inline error message — always visible when login fails */}
+          {errorMsg && (
+            <div className="auth-error-banner" role="alert">
+              <span className="auth-error-icon">✕</span>
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
           <button type="submit" disabled={loading} className="btn-primary w-full !py-2.5 text-sm">
             {loading ? 'Checking…' : 'Continue →'}
@@ -250,11 +261,10 @@ export default function AuthPage() {
                   key={t.value}
                   type="button"
                   onClick={() => setForm({ ...form, user_type: t.value })}
-                  className={`py-2 px-1 rounded-lg border text-center transition-all text-xs ${
-                    form.user_type === t.value
+                  className={`py-2 px-1 rounded-lg border text-center transition-all text-xs ${form.user_type === t.value
                       ? 'border-cyber-blue bg-cyber-blue/10 text-cyber-blue'
                       : 'border-cyber-border text-cyber-text-dim hover:border-cyber-blue/40'
-                  }`}
+                    }`}
                 >
                   <div>{t.icon}</div>
                   <div className="mt-1 font-medium">{t.label}</div>

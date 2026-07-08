@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../../api/axios';
-import toast from 'react-hot-toast';
+import { useNotify } from '../../context/NotifyContext';
 import { getUserTypeLabel } from '../../utils/helpers';
 
 const EMPTY_FORM = {
@@ -127,6 +127,7 @@ export default function QuestionManagement() {
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [search, setSearch] = useState('');
+  const notify = useNotify();
 
   const loadQuestions = useCallback(async () => {
     setLoading(true);
@@ -134,7 +135,7 @@ export default function QuestionManagement() {
       const data = await fetchAllQuestions();
       setQuestions(data);
     } catch {
-      toast.error('Failed to load questions');
+      notify.error('Failed to load questions');
     } finally {
       setLoading(false);
     }
@@ -153,23 +154,23 @@ export default function QuestionManagement() {
   };
 
   const saveQ = async () => {
-    if (!form.question_text?.trim()) { toast.error('Question text is required'); return; }
+    if (!form.question_text?.trim()) { notify.error('Question text is required'); return; }
     if (!form.option_a || !form.option_b || !form.option_c || !form.option_d) {
-      toast.error('All four options are required');
+      notify.error('All four options are required');
       return;
     }
     try {
       if (modal === 'edit' && form.id) {
         await api.put(`/questions/${form.id}/`, form);
-        toast.success('Question updated');
+        notify.success('Question updated successfully');
       } else {
         await api.post('/questions/', form);
-        toast.success('Question added');
+        notify.success('Question added successfully');
       }
       setModal(null);
       loadQuestions();
     } catch (err) {
-      toast.error(Object.values(err.response?.data || {}).flat()[0] || 'Save failed');
+      notify.error(Object.values(err.response?.data || {}).flat()[0] || 'Save failed');
     }
   };
 
@@ -177,10 +178,10 @@ export default function QuestionManagement() {
     if (!confirm('Delete this question permanently?')) return;
     try {
       await api.delete(`/questions/${id}/`);
-      toast.success('Question deleted');
+      notify.success('Question deleted');
       loadQuestions();
     } catch {
-      toast.error('Delete failed');
+      notify.error('Delete failed. Please try again.');
     }
   };
 

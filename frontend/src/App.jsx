@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -17,6 +17,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import SurveyPage from './pages/SurveyPage';
+
+// Pages where the footer should be hidden so content fills the screen
+const NO_FOOTER_PATHS = ['/quiz', '/survey'];
 
 function HomeRedirect() {
   const { isAuthenticated, isAdmin } = useAuth();
@@ -43,10 +46,13 @@ function QuizRedirect() {
 }
 
 export default function App() {
+  const location = useLocation();
+  const hideFooter = NO_FOOTER_PATHS.some(p => location.pathname.startsWith(p));
+
   return (
     <div className="min-h-screen flex flex-col bg-cyber-darkest">
       <Navbar />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col" style={hideFooter ? { overflow: 'hidden' } : {}}>
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/login" element={<AuthRedirect><AuthPage /></AuthRedirect>} />
@@ -68,7 +74,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <Footer />
+      {!hideFooter && <Footer />}
     </div>
   );
 }

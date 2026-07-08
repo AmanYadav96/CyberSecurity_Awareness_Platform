@@ -131,9 +131,10 @@ class QuizSubmitView(APIView):
 
         for answer_data in answers_data:
             question = get_object_or_404(Question, id=answer_data['question_id'])
-            selected = answer_data['selected_answer']
+            selected = answer_data['selected_answer']  # May be None for unanswered
             correct = question.correct_answer
-            is_correct = selected == correct
+            # Unanswered questions (None) are always incorrect
+            is_correct = selected is not None and selected == correct
 
             if is_correct:
                 total_score += 1
@@ -151,10 +152,11 @@ class QuizSubmitView(APIView):
 
             user_answers.append({
                 'question': question,
-                'selected_answer': selected,
+                'selected_answer': selected or '',  # Store empty string for unanswered
                 'correct_answer': correct,
                 'is_correct': is_correct,
             })
+
 
         # Calculate percentage
         total_questions = len(answers_data)

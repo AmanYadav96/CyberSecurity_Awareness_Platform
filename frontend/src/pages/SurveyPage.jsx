@@ -34,6 +34,9 @@ export default function SurveyPage() {
 
   const setAnswer = (key, value) => setAnswers(a => ({ ...a, [key]: value }));
 
+  const answeredCount = Object.keys(answers).length;
+  const progress = Math.round((answeredCount / questions.length) * 100);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const missing = questions.find(q => !answers[q.key]);
@@ -63,28 +66,56 @@ export default function SurveyPage() {
 
   return (
     <PageLayout title="Cyber Awareness Survey" subtitle="Help us personalize your learning experience (one-time only)" centered>
-      <form onSubmit={handleSubmit} className="glass-card profile-section-card w-full max-w-2xl mx-auto">
-        <div className="space-y-8">
-          {questions.map((q, idx) => (
-            <div key={`${q.key}-${idx}`} className="survey-question">
-              <p className="text-sm font-semibold text-cyber-text mb-3">
-                {idx + 1}. {q.question}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {q.options.map(opt => (
-                  <button key={opt.value} type="button" onClick={() => setAnswer(q.key, opt.value)}
-                    className={`survey-option ${answers[q.key] === opt.value ? 'selected' : ''}`}>
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+      <div className="w-full max-w-2xl mx-auto">
+        {/* Progress Bar */}
+        <div className="glass-card mb-4 px-5 py-3 flex items-center gap-4">
+          <div className="flex-1">
+            <div className="flex justify-between text-xs text-cyber-text-dim mb-1.5">
+              <span>{answeredCount} of {questions.length} answered</span>
+              <span className={answeredCount === questions.length ? 'text-cyber-neon font-semibold' : 'text-cyber-gold'}>
+                {answeredCount === questions.length ? '✓ All done!' : `${questions.length - answeredCount} remaining`}
+              </span>
             </div>
-          ))}
+            <div className="progress-bar">
+              <div className="progress-bar-fill" style={{ width: `${progress}%`, transition: 'width 0.4s ease' }} />
+            </div>
+          </div>
+          <span className="text-sm font-bold text-cyber-blue flex-shrink-0">{progress}%</span>
         </div>
-        <button type="submit" disabled={loading} className="btn-primary w-full !py-3 text-sm mt-8">
-          {loading ? 'Submitting...' : 'Submit & Start Learning →'}
-        </button>
-      </form>
+
+        <form onSubmit={handleSubmit} className="glass-card profile-section-card w-full">
+          <div className="space-y-7">
+            {questions.map((q, idx) => (
+              <div key={`${q.key}-${idx}`} className="survey-question">
+                <p className="text-sm font-semibold text-cyber-text mb-3 leading-relaxed">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold mr-2
+                    bg-cyber-blue/15 text-cyber-blue border border-cyber-blue/25 flex-shrink-0">
+                    {idx + 1}
+                  </span>
+                  {q.question}
+                </p>
+                <div className="survey-options-grid">
+                  {q.options.map(opt => (
+                    <button key={opt.value} type="button" onClick={() => setAnswer(q.key, opt.value)}
+                      className={`survey-option ${answers[q.key] === opt.value ? 'selected' : ''}`}>
+                      {answers[q.key] === opt.value && <span className="survey-option-check">✓</span>}
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-cyber-border/20">
+            <button type="submit" disabled={loading || answeredCount < questions.length} className="btn-primary w-full !py-3.5 text-sm">
+              {loading ? 'Submitting...' : answeredCount < questions.length
+                ? `Answer ${questions.length - answeredCount} more question${questions.length - answeredCount !== 1 ? 's' : ''} to continue`
+                : 'Submit & Start Learning →'}
+            </button>
+          </div>
+        </form>
+      </div>
 
       <CenterModal
         open={!!modal}

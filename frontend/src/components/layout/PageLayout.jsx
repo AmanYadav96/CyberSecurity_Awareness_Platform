@@ -6,6 +6,8 @@ export default function PageLayout({
   action,
   loading = false,
   centered = false,
+  fullWidth = false,
+  compact = false,
   children,
   className = '',
 }) {
@@ -17,8 +19,12 @@ export default function PageLayout({
     );
   }
 
+  const containerCls = fullWidth
+    ? `w-full flex-1 px-4 sm:px-6 ${compact ? 'py-4' : 'py-6 sm:py-8'}`
+    : `page-container flex-1 ${compact ? 'py-4' : 'py-8 sm:py-10'} ${centered ? 'flex flex-col items-center' : ''}`;
+
   return (
-    <div className={`page-container flex-1 py-8 sm:py-10 ${centered ? 'flex flex-col items-center' : ''} ${className}`}>
+    <div className={`${containerCls} ${className}`}>
       {(title || action) && (
         <header className={`page-header ${centered ? 'page-header-centered flex-col' : 'w-full'}`}>
           <div className={centered ? 'text-center w-full' : 'min-w-0 flex-1'}>
