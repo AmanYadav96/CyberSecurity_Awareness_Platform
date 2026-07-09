@@ -71,7 +71,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 
 
-DATABASE_URL = "postgresql://postgres:Shriram@123@db.derkuyyijoggrukjjlbs.supabase.co:5432/postgres"
+DATABASE_URL = "postgresql://postgres.derkuyyijoggrukjjlbs:Shriram@123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
 
 if DATABASE_URL:
     DATABASES = {
@@ -92,14 +92,14 @@ else:
             }
         }
     else:
-       DATABASES = {
+      DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "postgres",
-        "USER": "postgres",
+        "USER": "postgres.derkuyyijoggrukjjlbs",
         "PASSWORD": "Shriram@123",
-        "HOST": "db.derkuyyijoggrukjjlbs.supabase.co",
-        "PORT": "5432",
+        "HOST": "aws-0-ap-southeast-1.pooler.supabase.com",
+        "PORT": "6543",
     }
 }
 # Custom User Model
@@ -161,7 +161,7 @@ frontend_url = "https://cybersecurityap.vercel.app/"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "*",
+     "*",
 ]
 
 if frontend_url:
