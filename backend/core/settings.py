@@ -152,7 +152,7 @@ SIMPLE_JWT = {
 }
 
 # CORS
-frontend_url = os.getenv("https://cybersecurityap.vercel.app/")
+frontend_url = "https://cybersecurityap.vercel.app/"
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
