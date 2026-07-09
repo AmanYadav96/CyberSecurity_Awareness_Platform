@@ -212,6 +212,20 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
+# Also allow regex patterns for CSRF (Django 4.0+)
+CSRF_TRUSTED_ORIGIN_REGEXES = [
+    r"^https?://.*\.vercel\.app$",
+    r"^https?://.*\.netlify\.app$",
+    r"^https?://.*\.github\.io$",
+    r"^https?://.*\.gitlab\.io$",
+    r"^https?://.*\.pages\.dev$",
+    r"^https?://localhost(:\d+)?$",
+    r"^https?://127\.0\.0\.1(:\d+)?$",
+    r"^https?://0\.0\.0\.0(:\d+)?$",
+    r"^https?://.*\.ngrok\.io$",
+    r"^https?://.*\.ngrok-free\.app$",
+]
+
 # For session cookies in cross-origin requests
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True

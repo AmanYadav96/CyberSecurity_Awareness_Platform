@@ -1,5 +1,6 @@
 import os
 import django
+import re
 from django.core.handlers.wsgi import WSGIHandler
 from django.core.wsgi import get_wsgi_application
 from django.conf import settings
@@ -12,11 +13,60 @@ django.setup()
 # Get the WSGI application
 application = get_wsgi_application()
 
+# Compile regex patterns for allowed origins
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    re.compile(r"^https?://.*\.vercel\.app$"),
+    re.compile(r"^https?://.*\.netlify\.app$"),
+    re.compile(r"^https?://.*\.github\.io$"),
+    re.compile(r"^https?://.*\.gitlab\.io$"),
+    re.compile(r"^https?://.*\.pages\.dev$"),
+    re.compile(r"^https?://.*\.cloudflare\.com$"),
+    re.compile(r"^https?://.*\.azure\.com$"),
+    re.compile(r"^https?://.*\.aws\.amazon\.com$"),
+    re.compile(r"^https?://.*\.googleapis\.com$"),
+    re.compile(r"^https?://localhost(:\d+)?$"),
+    re.compile(r"^https?://127\.0\.0\.1(:\d+)?$"),
+    re.compile(r"^https?://0\.0\.0\.0(:\d+)?$"),
+    re.compile(r"^https?://.*\.ngrok\.io$"),
+    re.compile(r"^https?://.*\.ngrok-free\.app$"),
+]
+
+def is_origin_allowed(origin):
+    """Check if origin matches any allowed regex pattern"""
+    if not origin:
+        return False
+    for pattern in CORS_ALLOWED_ORIGIN_REGEXES:
+        if pattern.match(origin):
+            return True
+    return False
+
+def get_cors_headers(origin):
+    """Generate CORS headers for a given origin"""
+    if is_origin_allowed(origin):
+        return {
+            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Credentials': 'true',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRFToken, X-Requested-With, Accept, Origin',
+            'Access-Control-Max-Age': '86400',
+        }
+    else:
+        # For disallowed origins, return minimal headers without credentials
+        return {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRFToken, X-Requested-With, Accept, Origin',
+            'Access-Control-Max-Age': '86400',
+        }
+
 
 def handler(event, context):
     # Create a WSGI environment from the Vercel event
     os.environ['SERVER_NAME'] = event.get('headers', {}).get('host', 'localhost')
     os.environ['SERVER_PORT'] = event.get('headers', {}).get('x-forwarded-port', '443')
+    
+    # Get the origin from request headers
+    request_origin = event.get('headers', {}).get('origin', '')
     
     # Set up the WSGI environment
     body = event.get('body', '')
@@ -52,15 +102,10 @@ def handler(event, context):
     
     # Handle OPTIONS preflight requests
     if event['httpMethod'] == 'OPTIONS':
+        cors_headers = get_cors_headers(request_origin)
         return {
             'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRFToken, X-Requested-With, Accept, Origin',
-                'Access-Control-Allow-Credentials': 'true',
-                'Access-Control-Max-Age': '86400',
-            },
+            'headers': cors_headers,
             'body': ''
         }
     
@@ -79,11 +124,8 @@ def handler(event, context):
     # Extract status code
     status_code = int(response_status[0].split(' ')[0])
     
-    # Add CORS headers to response
-    cors_headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Credentials': 'true',
-    }
+    # Add CORS headers to response based on request origin
+    cors_headers = get_cors_headers(request_origin)
     
     # Merge CORS headers with Django response headers
     response_headers_dict = dict(response_headers)
