@@ -1,6 +1,5 @@
 import uuid
 from django.utils import timezone
-from django.core.mail import send_mail
 from django.conf import settings
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
@@ -16,7 +15,7 @@ from .serializers import (
     CyberSurveySerializer,
 )
 from .permissions import IsAdmin
-from .utils import generate_otp
+from .utils import generate_otp, send_otp_email, send_password_reset_email
 
 
 def _auth_response(user, message='Success'):
@@ -78,20 +77,9 @@ class SendOTPView(APIView):
         expires = timezone.now() + timezone.timedelta(minutes=10)
 
         EmailOTP.objects.create(email=email, otp=otp, expires_at=expires)
-        print("EMAIL_HOST:", settings.EMAIL_HOST)
-        print("EMAIL_PORT:", settings.EMAIL_PORT)
-        print("EMAIL_USER:", settings.EMAIL_HOST_USER)
-        print("Sending email...")
-        send_mail(
-            subject='CyberAware — Email Verification Code',
-            message=f'Your verification code is: {otp}\n\nThis code expires in 10 minutes.',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
-        )
+        send_otp_email(email=email, otp=otp, expiry_minutes=10)
 
-        response_data = {'message': 'Verification code sent to your email.'}
-        return Response(response_data)
+        return Response({'message': 'Verification code sent to your email.'})
 
 
 class VerifyOTPView(APIView):
@@ -155,13 +143,7 @@ class ForgotPasswordView(APIView):
             user.password_reset_token_created = timezone.now()
             user.save()
             reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
-            send_mail(
-                subject='CyberAware - Password Reset',
-                message=f'Click the link to reset your password: {reset_url}\n\nThis link expires in 1 hour.',
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email],
-                fail_silently=False,
-            )
+            send_password_reset_email(email=email, reset_url=reset_url, expiry_hours=1)
             response_data = {'message': 'If an account exists with this email, a password reset link has been sent.'}
             if settings.DEBUG:
                 response_data['reset_link'] = reset_url

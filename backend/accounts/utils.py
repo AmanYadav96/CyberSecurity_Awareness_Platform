@@ -2,6 +2,91 @@
 import re
 import secrets
 import string
+import random
+
+from django.template.loader import render_to_string
+from django.core.mail import EmailMultiAlternatives
+from django.conf import settings
+
+
+# ── Security tips rotated into every email ──────────────────────────────────
+_SECURITY_TIPS = [
+    "Use a unique, strong password for every account. A password manager like Bitwarden or 1Password can generate and store them securely.",
+    "Enable Two-Factor Authentication (2FA) on all accounts that support it. Even if your password is stolen, attackers can't access your account.",
+    "Always verify the sender's email address before clicking any link. Phishing emails often spoof display names.",
+    "Keep your devices and apps up-to-date. Security patches fix vulnerabilities that attackers actively exploit.",
+    "Never use public Wi-Fi for sensitive activities like banking. Use a VPN to encrypt your traffic.",
+    "Check for HTTPS (padlock icon) before entering any personal information on a website.",
+    "Back up your data regularly following the 3-2-1 rule: 3 copies, 2 different media types, 1 offsite.",
+    "Be wary of urgent requests for personal information — scammers create false urgency to bypass your critical thinking.",
+    "A strong password has at least 12 characters, mixing uppercase, lowercase, numbers, and symbols. Avoid dictionary words.",
+    "Review app permissions regularly. An app should only have access to what it genuinely needs.",
+]
+
+
+def get_random_security_tip():
+    return random.choice(_SECURITY_TIPS)
+
+
+def send_otp_email(email: str, otp: str, expiry_minutes: int = 10):
+    """Send a styled HTML OTP verification email."""
+    otp_digits = list(otp)
+
+    context = {
+        'email': email,
+        'otp': otp,
+        'otp_digits': otp_digits,
+        'expiry_minutes': expiry_minutes,
+        'security_tip': get_random_security_tip(),
+    }
+
+    subject = 'CyberAware — Your Email Verification Code'
+    plain_text = (
+        f"Your CyberAware verification code is: {otp}\n\n"
+        f"This code expires in {expiry_minutes} minutes.\n\n"
+        "Never share this code with anyone.\n\n"
+        "If you didn't request this, ignore this email."
+    )
+    html_content = render_to_string('accounts/email_otp.html', context)
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=plain_text,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[email],
+    )
+    msg.attach_alternative(html_content, 'text/html')
+    msg.send(fail_silently=False)
+
+
+def send_password_reset_email(email: str, reset_url: str, expiry_hours: int = 1):
+    """Send a styled HTML password-reset email."""
+    context = {
+        'email': email,
+        'reset_url': reset_url,
+        'expiry_hours': expiry_hours,
+        'security_tip': get_random_security_tip(),
+    }
+
+    subject = 'CyberAware — Password Reset Request'
+    plain_text = (
+        f"Hello {email},\n\n"
+        "We received a request to reset your CyberAware password.\n\n"
+        f"Reset link: {reset_url}\n\n"
+        f"This link expires in {expiry_hours} hour(s).\n\n"
+        "If you didn't request this, ignore this email.\n\n"
+        "— The CyberAware Team"
+    )
+    html_content = render_to_string('accounts/email_reset_password.html', context)
+
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=plain_text,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[email],
+    )
+    msg.attach_alternative(html_content, 'text/html')
+    msg.send(fail_silently=False)
 
 
 def format_display_name(full_name):
