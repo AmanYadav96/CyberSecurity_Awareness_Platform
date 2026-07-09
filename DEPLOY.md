@@ -171,8 +171,7 @@ export VERCEL_TOKEN=<your_vercel_token>
 cd backend
 vercel deploy --prod --yes --token $VERCEL_TOKEN --name cyber-security-backend
 
-# (Replace the URL below with the one printed by the previous command)
-export BACKEND_URL=https://cyber-security-backend-xxx.vercel.app
+export BACKEND_URL=https://cyber-security-awareness-platform-dusky.vercel.app
 
 # Set backend env vars
 echo "core.settings"  | vercel env add DJANGO_SETTINGS_MODULE production --token $VERCEL_TOKEN --yes
@@ -192,8 +191,7 @@ vercel deploy --prod --yes \
   --build-env VITE_API_URL="$BACKEND_URL/api" \
   --env VITE_API_URL="$BACKEND_URL/api"
 
-# (Replace the URL below with the one printed by the previous command)
-export FRONTEND_URL=https://cybersecurityap.vercel.app
+export FRONTEND_URL=https://cybersecurityap.vercel.app   # update after frontend deploys
 
 # ── 4. Update backend FRONTEND_URL ──────────────────────────
 cd ../backend
