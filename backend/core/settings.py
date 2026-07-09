@@ -155,22 +155,23 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 
-# CORS
-# Get frontend URL from environment variable, fallback to known URLs
-frontend_url = os.getenv('FRONTEND_URL', 'https://cybersecurityap.vercel.app')
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    frontend_url,
+# CORS - Allow all origins with credentials using regex
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https?://.*\.vercel\.app$",
+    r"^https?://.*\.netlify\.app$",
+    r"^https?://.*\.github\.io$",
+    r"^https?://.*\.gitlab\.io$",
+    r"^https?://.*\.pages\.dev$",
+    r"^https?://.*\.cloudflare\.com$",
+    r"^https?://.*\.azure\.com$",
+    r"^https?://.*\.aws\.amazon\.com$",
+    r"^https?://.*\.googleapis\.com$",
+    r"^https?://localhost(:\d+)?$",
+    r"^https?://127\.0\.0\.1(:\d+)?$",
+    r"^https?://0\.0\.0\.0(:\d+)?$",
+    r"^https?://.*\.ngrok\.io$",
+    r"^https?://.*\.ngrok-free\.app$",
 ]
-
-# Allow additional origins from environment variable (comma-separated)
-additional_origins = os.getenv('CORS_ADDITIONAL_ORIGINS', '')
-if additional_origins:
-    CORS_ALLOWED_ORIGINS.extend([origin.strip() for origin in additional_origins.split(',')])
 
 # For development, you can also use CORS_ALLOW_ALL_ORIGINS = True (but not with credentials)
 # CORS_ALLOW_ALL_ORIGINS = True
@@ -211,11 +212,6 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
-# Add additional CSRF trusted origins from environment
-additional_csrf = os.getenv('CSRF_ADDITIONAL_ORIGINS', '')
-if additional_csrf:
-    CSRF_TRUSTED_ORIGINS.extend([origin.strip() for origin in additional_csrf.split(',')])
-
 # For session cookies in cross-origin requests
 SESSION_COOKIE_SAMESITE = 'None'
 SESSION_COOKIE_SECURE = True
@@ -255,8 +251,8 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
-EMAIL_USE_TLS = False
-EMAIL_USE_SSL = True
+EMAIL_USE_TLS = True
+
 
 EMAIL_HOST_USER = "cybersecurityapplication@gmail.com"
 EMAIL_HOST_PASSWORD = "crrclvoocgdxedvc"

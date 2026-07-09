@@ -55,9 +55,9 @@ def handler(event, context):
         return {
             'statusCode': 200,
             'headers': {
-                'Access-Control-Allow-Origin': 'https://cybersecurityap.vercel.app',
+                'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRFToken, X-Requested-With',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRFToken, X-Requested-With, Accept, Origin',
                 'Access-Control-Allow-Credentials': 'true',
                 'Access-Control-Max-Age': '86400',
             },
@@ -81,7 +81,7 @@ def handler(event, context):
     
     # Add CORS headers to response
     cors_headers = {
-        'Access-Control-Allow-Origin': 'https://cybersecurityap.vercel.app',
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': 'true',
     }
     
