@@ -1,139 +1,84 @@
 import os
 import django
-import re
-from django.core.handlers.wsgi import WSGIHandler
 from django.core.wsgi import get_wsgi_application
-from django.conf import settings
 
-# Set up Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
-
 django.setup()
 
-# Get the WSGI application
-application = get_wsgi_application()
+_django_app = get_wsgi_application()
 
-# Compile regex patterns for allowed origins
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    re.compile(r"^https?://.*\.vercel\.app$"),
-    re.compile(r"^https?://.*\.netlify\.app$"),
-    re.compile(r"^https?://.*\.github\.io$"),
-    re.compile(r"^https?://.*\.gitlab\.io$"),
-    re.compile(r"^https?://.*\.pages\.dev$"),
-    re.compile(r"^https?://.*\.cloudflare\.com$"),
-    re.compile(r"^https?://.*\.azure\.com$"),
-    re.compile(r"^https?://.*\.aws\.amazon\.com$"),
-    re.compile(r"^https?://.*\.googleapis\.com$"),
-    re.compile(r"^https?://localhost(:\d+)?$"),
-    re.compile(r"^https?://127\.0\.0\.1(:\d+)?$"),
-    re.compile(r"^https?://0\.0\.0\.0(:\d+)?$"),
-    re.compile(r"^https?://.*\.ngrok\.io$"),
-    re.compile(r"^https?://.*\.ngrok-free\.app$"),
-]
-
-def is_origin_allowed(origin):
-    """Check if origin matches any allowed regex pattern"""
-    if not origin:
-        return False
-    for pattern in CORS_ALLOWED_ORIGIN_REGEXES:
-        if pattern.match(origin):
-            return True
-    return False
-
-def get_cors_headers(origin):
-    """Generate CORS headers for a given origin"""
-    if is_origin_allowed(origin):
-        return {
-            'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRFToken, X-Requested-With, Accept, Origin',
-            'Access-Control-Max-Age': '86400',
-        }
-    else:
-        # For disallowed origins, return minimal headers without credentials
-        return {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRFToken, X-Requested-With, Accept, Origin',
-            'Access-Control-Max-Age': '86400',
-        }
+# Headers forwarded to every preflight response
+_CORS_ALLOW_HEADERS = (
+    'Accept, Accept-Encoding, Authorization, Content-Type, '
+    'DNT, Origin, User-Agent, X-CSRFToken, X-Requested-With, '
+    'X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host'
+)
+_CORS_ALLOW_METHODS = 'GET, POST, PUT, DELETE, PATCH, OPTIONS'
 
 
-def handler(event, context):
-    # Create a WSGI environment from the Vercel event
-    os.environ['SERVER_NAME'] = event.get('headers', {}).get('host', 'localhost')
-    os.environ['SERVER_PORT'] = event.get('headers', {}).get('x-forwarded-port', '443')
-    
-    # Get the origin from request headers
-    request_origin = event.get('headers', {}).get('origin', '')
-    
-    # Set up the WSGI environment
-    body = event.get('body', '')
-    if event.get('isBase64Encoded', False):
-        body = body.encode('utf-8')
-    
-    # Create WSGI environment
-    environ = {
-        'REQUEST_METHOD': event['httpMethod'],
-        'PATH_INFO': event['path'],
-        'QUERY_STRING': event.get('queryStringParameters', '') or '',
-        'SERVER_PROTOCOL': 'HTTP/1.1',
-        'CONTENT_TYPE': event.get('headers', {}).get('content-type', ''),
-        'CONTENT_LENGTH': str(len(body)),
-        'SCRIPT_NAME': '',
-        'SERVER_NAME': os.environ['SERVER_NAME'],
-        'SERVER_PORT': os.environ['SERVER_PORT'],
-        'wsgi.url_scheme': event.get('headers', {}).get('x-forwarded-proto', 'https'),
-        'wsgi.input': body,
-        'wsgi.version': (1, 0),
-        'wsgi.errors': open(os.devnull, 'w'),
-        'wsgi.multithread': False,
-        'wsgi.multiprocess': False,
-        'wsgi.run_once': False,
-    }
-    
-    # Add headers to environment
-    for key, value in event.get('headers', {}).items():
-        key = key.upper().replace('-', '_')
-        if key not in ['CONTENT_TYPE', 'CONTENT_LENGTH']:
-            key = 'HTTP_' + key
-        environ[key] = value
-    
-    # Handle OPTIONS preflight requests
-    if event['httpMethod'] == 'OPTIONS':
-        cors_headers = get_cors_headers(request_origin)
-        return {
-            'statusCode': 200,
-            'headers': cors_headers,
-            'body': ''
-        }
-    
-    # Call the Django application
-    response_status = []
-    response_headers = []
-    
-    def start_response(status, headers, exc_info=None):
-        response_status.append(status)
-        response_headers.extend(headers)
-        return lambda x: x
-    
-    # Get the response from Django
-    response_body = b''.join(application(environ, start_response))
-    
-    # Extract status code
-    status_code = int(response_status[0].split(' ')[0])
-    
-    # Add CORS headers to response based on request origin
-    cors_headers = get_cors_headers(request_origin)
-    
-    # Merge CORS headers with Django response headers
-    response_headers_dict = dict(response_headers)
-    response_headers_dict.update(cors_headers)
-    
-    # Return the response in Vercel format
-    return {
-        'statusCode': status_code,
-        'headers': response_headers_dict,
-        'body': response_body.decode('utf-8') if isinstance(response_body, bytes) else response_body
-    }
+def _cors_headers(origin):
+    """Return CORS response headers for a known origin."""
+    return [
+        ('Access-Control-Allow-Origin', origin),
+        ('Access-Control-Allow-Credentials', 'true'),
+        ('Access-Control-Allow-Methods', _CORS_ALLOW_METHODS),
+        ('Access-Control-Allow-Headers', _CORS_ALLOW_HEADERS),
+        ('Access-Control-Max-Age', '86400'),
+    ]
+
+
+def application(environ, start_response):
+    """
+    WSGI entry-point that Vercel's Python runtime calls.
+
+    Responsibilities
+    ─────────────────
+    1. Strip the literal ``{proxy}`` query-string injected by old vercel.json
+       routing so Django never sees it.
+    2. Short-circuit OPTIONS preflight requests at this layer — no need to
+       touch Django at all.
+    3. Wrap every Django response with the correct CORS headers so they are
+       present even on 4xx/5xx error pages.
+    """
+    origin = environ.get('HTTP_ORIGIN', '')
+
+    # ── 1. Scrub Vercel template-variable pollution from QUERY_STRING ─────────
+    # Old vercel.json routes used `"dest": "/api/index.py?{proxy}"`.
+    # When the template is not expanded, the WSGI app receives literal strings
+    # like "{proxy}", "proxy=", or "{proxy}=" which corrupt Django routing.
+    import re as _re
+    qs = environ.get('QUERY_STRING', '')
+    cleaned_qs = _re.sub(r'\{[^}]+\}=?', '', qs).strip('&')
+    if cleaned_qs in ('', '='):
+        cleaned_qs = ''
+    environ['QUERY_STRING'] = cleaned_qs
+
+    # ── 2. Handle OPTIONS preflight without touching Django ──────────────────
+    if environ.get('REQUEST_METHOD') == 'OPTIONS':
+        headers = [('Content-Type', 'text/plain'), ('Content-Length', '0')]
+        if origin:
+            headers += _cors_headers(origin)
+        else:
+            headers += [
+                ('Access-Control-Allow-Origin', '*'),
+                ('Access-Control-Allow-Methods', _CORS_ALLOW_METHODS),
+                ('Access-Control-Allow-Headers', _CORS_ALLOW_HEADERS),
+            ]
+        start_response('200 OK', headers)
+        return [b'']
+
+    # ── 3. Inject CORS headers into every Django response ───────────────────
+    def cors_start_response(status, response_headers, exc_info=None):
+        headers = [(k, v) for k, v in response_headers
+                   if k.lower() not in ('access-control-allow-origin',
+                                        'access-control-allow-credentials')]
+        if origin:
+            headers += [
+                ('Access-Control-Allow-Origin', origin),
+                ('Access-Control-Allow-Credentials', 'true'),
+            ]
+        else:
+            headers.append(('Access-Control-Allow-Origin', '*'))
+        return start_response(status, headers, exc_info)
+
+    return _django_app(environ, cors_start_response)

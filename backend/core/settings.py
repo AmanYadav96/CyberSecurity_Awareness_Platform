@@ -12,8 +12,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-production')
-DEBUG = True
-ALLOWED_HOSTS = ["*"]
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',') if os.getenv('ALLOWED_HOSTS') else ['*']
 
 # Application definition
 INSTALLED_APPS = [
@@ -38,15 +38,19 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',        # must be as high as possible
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Disable APPEND_SLASH to prevent RuntimeError on POST to URLs without
+# trailing slash (Vercel Python runtime cannot follow the redirect).
+APPEND_SLASH = False
 
 ROOT_URLCONF = 'core.urls'
 
@@ -71,7 +75,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 
 
-DATABASE_URL = "postgresql://postgres.derkuyyijoggrukjjlbs:Shriram@123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+DATABASE_URL = os.getenv(
+    'DATABASE_URL',
+    "postgresql://postgres.derkuyyijoggrukjjlbs:Shriram@123@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+)
 
 if DATABASE_URL:
     DATABASES = {
@@ -206,6 +213,7 @@ CORS_ALLOW_METHODS = [
 # Allow cookies to be sent cross-origin
 CSRF_TRUSTED_ORIGINS = [
     "https://cybersecurityap.vercel.app",
+    "https://cyber-security-awareness-platform-dusky.vercel.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
@@ -268,8 +276,15 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
 
-EMAIL_HOST_USER = "cybersecurityapplication@gmail.com"
-EMAIL_HOST_PASSWORD = "crrclvoocgdxedvc"
-DEFAULT_FROM_EMAIL = "cybersecurityapplication@gmail.com"
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "cybersecurityapplication@gmail.com")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "crrclvoocgdxedvc")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "cybersecurityapplication@gmail.com")
 
-FRONTEND_URL = "https://cybersecurityap.vercel.app"
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'https://cybersecurityap.vercel.app')
+
+# Append any extra CSRF origins from env (comma-separated)
+_extra_csrf = os.getenv('CSRF_ADDITIONAL_ORIGINS', '')
+if _extra_csrf:
+    CSRF_TRUSTED_ORIGINS += [o.strip() for o in _extra_csrf.split(',') if o.strip()]
+if FRONTEND_URL and FRONTEND_URL not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(FRONTEND_URL)
